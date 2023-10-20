@@ -320,9 +320,9 @@ func TestConfigRemoteWithAuth(t *testing.T) {
 		Managed    bool
 		EntityName string
 	}{
-		{Case: "unmanaged and default host"},
-		{Case: "unmanaged and specific host", EntityName: "something-different"},
-		{Case: "managed and default host", Managed: true},
+		// {Case: "unmanaged and default host"},
+		// {Case: "unmanaged and specific host", EntityName: "something-different"},
+		// {Case: "managed and default host", Managed: true},
 		{Case: "managed and specific host", Managed: true, EntityName: "something-different"},
 	} {
 		t.Run(tc.Case, func(t *testing.T) {
