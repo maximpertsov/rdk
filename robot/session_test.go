@@ -59,12 +59,13 @@ func init() {
 	})
 }
 
-func BenchmarkSessions(t *testing.B) {
+func TestSessions(t *testing.T) {
 	for _, windowSize := range []time.Duration{
 		config.DefaultSessionHeartbeatWindow,
 		time.Second * 5,
 	} {
-		t.Run(fmt.Sprintf("window size=%s", windowSize), func(t *testing.B) {
+		t.Run(fmt.Sprintf("window size=%s", windowSize), func(t *testing.T) {
+			t.Parallel()
 			logger := logging.NewTestLogger(t)
 
 			stopChs := map[string]*StopChan{
@@ -195,9 +196,10 @@ func BenchmarkSessions(t *testing.B) {
 			// kind of racy but it's okay
 			ensureStop(t, "", stopChNames)
 
-			t.Run("one_component", func(t *testing.B) {
-				t.StopTimer()
-				for i := 0; i < t.N; i++ {
+			t.Run("one_component", func(t *testing.T) {
+				n := 5
+				var totalTime float64
+				for i := 0; i < n; i++ {
 					roboClient, err = client.New(ctx, addr, logger)
 					test.That(t, err, test.ShouldBeNil)
 
@@ -207,11 +209,11 @@ func BenchmarkSessions(t *testing.B) {
 					t.Log("set power of motor1 which will be safety monitored")
 					test.That(t, motor1.SetPower(ctx, 50, nil), test.ShouldBeNil)
 
-					t.StartTimer()
+					startAt := time.Now()
 					test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
 
 					ensureStop(t, "motor1", stopChNames)
-					t.StopTimer()
+					totalTime += float64(time.Since(startAt))
 
 					dummyMotor1.mu.Lock()
 					stopChs["motor1"].Chan = make(chan struct{})
@@ -219,16 +221,17 @@ func BenchmarkSessions(t *testing.B) {
 					dummyMotor1.mu.Unlock()
 				}
 				test.That(t,
-					float64(t.Elapsed())/float64(t.N),
+					totalTime/float64(n),
 					test.ShouldBeBetweenOrEqual,
 					float64(windowSize)*.75,
 					float64(windowSize)*1.5,
 				)
 			})
 
-			t.Run("multiple_components", func(t *testing.B) {
-				t.StopTimer()
-				for i := 0; i < t.N; i++ {
+			t.Run("multiple_components", func(t *testing.T) {
+				n := 5
+				var totalTime float64
+				for i := 0; i < n; i++ {
 					roboClient, err = client.New(ctx, addr, logger)
 					test.That(t, err, test.ShouldBeNil)
 
@@ -248,14 +251,14 @@ func BenchmarkSessions(t *testing.B) {
 					_, err = echoMultiClient.Recv() // EOF; okay
 					test.That(t, err, test.ShouldBeError, io.EOF)
 
-					t.StartTimer()
+					startAt := time.Now()
 					test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
 
 					checkAgainst := []string{"motor1"}
 					ensureStop(t, "motor2", checkAgainst)
 					ensureStop(t, "echo1", checkAgainst)
 					ensureStop(t, "base1", checkAgainst)
-					t.StopTimer()
+					totalTime += float64(time.Since(startAt))
 
 					dummyMotor2.mu.Lock()
 					stopChs["motor2"].Chan = make(chan struct{})
@@ -273,7 +276,7 @@ func BenchmarkSessions(t *testing.B) {
 					dummyEcho1.mu.Unlock()
 				}
 				test.That(t,
-					float64(t.Elapsed())/float64(t.N),
+					totalTime/float64(n),
 					test.ShouldBeBetweenOrEqual,
 					float64(windowSize)*.75,
 					float64(windowSize)*1.5,
