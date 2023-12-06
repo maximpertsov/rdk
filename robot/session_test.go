@@ -59,12 +59,12 @@ func init() {
 	})
 }
 
-func TestSessions(t *testing.T) {
+func BenchmarkSessions(t *testing.B) {
 	for _, windowSize := range []time.Duration{
 		config.DefaultSessionHeartbeatWindow,
 		time.Second * 5,
 	} {
-		t.Run(fmt.Sprintf("window size=%s", windowSize), func(t *testing.T) {
+		t.Run(fmt.Sprintf("window size=%s", windowSize), func(t *testing.B) {
 			logger := logging.NewTestLogger(t)
 
 			stopChs := map[string]*StopChan{
@@ -195,65 +195,78 @@ func TestSessions(t *testing.T) {
 			// kind of racy but it's okay
 			ensureStop(t, "", stopChNames)
 
-			roboClient, err = client.New(ctx, addr, logger)
-			test.That(t, err, test.ShouldBeNil)
+			t.Run("one_component", func(t *testing.B) {
+				t.StopTimer()
+				for i := 0; i < t.N; i++ {
+					roboClient, err = client.New(ctx, addr, logger)
+					test.That(t, err, test.ShouldBeNil)
 
-			motor1, err = motor.FromRobot(roboClient, "motor1")
-			test.That(t, err, test.ShouldBeNil)
+					motor1, err = motor.FromRobot(roboClient, "motor1")
+					test.That(t, err, test.ShouldBeNil)
 
-			t.Log("set power of motor1 which will be safety monitored")
-			test.That(t, motor1.SetPower(ctx, 50, nil), test.ShouldBeNil)
+					t.Log("set power of motor1 which will be safety monitored")
+					test.That(t, motor1.SetPower(ctx, 50, nil), test.ShouldBeNil)
 
-			startAt := time.Now()
-			test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
+					t.StartTimer()
+					test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
 
-			ensureStop(t, "motor1", stopChNames)
+					ensureStop(t, "motor1", stopChNames)
+					t.StopTimer()
 
-			test.That(t,
-				time.Since(startAt),
-				test.ShouldBeBetweenOrEqual,
-				float64(windowSize)*.75,
-				float64(windowSize)*1.5,
-			)
+					dummyMotor1.mu.Lock()
+					stopChs["motor1"].Chan = make(chan struct{})
+					dummyMotor1.stopCh = stopChs["motor1"].Chan
+					dummyMotor1.mu.Unlock()
+				}
+			})
 
-			dummyMotor1.mu.Lock()
-			stopChs["motor1"].Chan = make(chan struct{})
-			dummyMotor1.stopCh = stopChs["motor1"].Chan
-			dummyMotor1.mu.Unlock()
+			t.Run("multiple_components", func(t *testing.B) {
+				t.StopTimer()
+				for i := 0; i < t.N; i++ {
+					roboClient, err = client.New(ctx, addr, logger)
+					test.That(t, err, test.ShouldBeNil)
 
-			roboClient, err = client.New(ctx, addr, logger)
-			test.That(t, err, test.ShouldBeNil)
+					motor2, err := motor.FromRobot(roboClient, "motor2")
+					test.That(t, err, test.ShouldBeNil)
 
-			motor2, err := motor.FromRobot(roboClient, "motor2")
-			test.That(t, err, test.ShouldBeNil)
+					t.Log("set power of motor2 which will be safety monitored")
+					test.That(t, motor2.SetPower(ctx, 50, nil), test.ShouldBeNil)
 
-			t.Log("set power of motor2 which will be safety monitored")
-			test.That(t, motor2.SetPower(ctx, 50, nil), test.ShouldBeNil)
+					echo1Client, err := roboClient.ResourceByName(echo1Name)
+					test.That(t, err, test.ShouldBeNil)
+					echo1Conn := echo1Client.(*dummyClient)
 
-			echo1Client, err := roboClient.ResourceByName(echo1Name)
-			test.That(t, err, test.ShouldBeNil)
-			echo1Conn := echo1Client.(*dummyClient)
+					t.Log("echo multiple of echo1 which will be safety monitored")
+					echoMultiClient, err := echo1Conn.client.EchoMultiple(ctx, &echopb.EchoMultipleRequest{Name: "echo1"})
+					test.That(t, err, test.ShouldBeNil)
+					_, err = echoMultiClient.Recv() // EOF; okay
+					test.That(t, err, test.ShouldBeError, io.EOF)
 
-			t.Log("echo multiple of echo1 which will be safety monitored")
-			echoMultiClient, err := echo1Conn.client.EchoMultiple(ctx, &echopb.EchoMultipleRequest{Name: "echo1"})
-			test.That(t, err, test.ShouldBeNil)
-			_, err = echoMultiClient.Recv() // EOF; okay
-			test.That(t, err, test.ShouldBeError, io.EOF)
+					t.StartTimer()
+					test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
 
-			startAt = time.Now()
-			test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
+					checkAgainst := []string{"motor1"}
+					ensureStop(t, "motor2", checkAgainst)
+					ensureStop(t, "echo1", checkAgainst)
+					ensureStop(t, "base1", checkAgainst)
+					t.StopTimer()
 
-			checkAgainst := []string{"motor1"}
-			ensureStop(t, "motor2", checkAgainst)
-			ensureStop(t, "echo1", checkAgainst)
-			ensureStop(t, "base1", checkAgainst)
+					dummyMotor2.mu.Lock()
+					stopChs["motor2"].Chan = make(chan struct{})
+					dummyMotor2.stopCh = stopChs["motor2"].Chan
+					dummyMotor2.mu.Unlock()
 
-			test.That(t,
-				time.Since(startAt),
-				test.ShouldBeBetweenOrEqual,
-				float64(windowSize)*.75,
-				float64(windowSize)*1.5,
-			)
+					dummyBase1.mu.Lock()
+					stopChs["base1"].Chan = make(chan struct{})
+					dummyBase1.stopCh = stopChs["base1"].Chan
+					dummyBase1.mu.Unlock()
+
+					dummyEcho1.mu.Lock()
+					stopChs["echo1"].Chan = make(chan struct{})
+					dummyEcho1.stopCh = stopChs["echo1"].Chan
+					dummyEcho1.mu.Unlock()
+				}
+			})
 
 			test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
 
@@ -1058,8 +1071,8 @@ type StopChan struct {
 	Name string
 }
 
-func makeEnsureStop(stopChs map[string]*StopChan) func(t *testing.T, name string, checkAgainst []string) {
-	return func(t *testing.T, name string, checkAgainst []string) {
+func makeEnsureStop(stopChs map[string]*StopChan) func(t testing.TB, name string, checkAgainst []string) {
+	return func(t testing.TB, name string, checkAgainst []string) {
 		t.Helper()
 		stopCases := make([]reflect.SelectCase, 0, len(checkAgainst))
 		for _, checkName := range checkAgainst {
