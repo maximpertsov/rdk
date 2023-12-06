@@ -218,6 +218,12 @@ func BenchmarkSessions(t *testing.B) {
 					dummyMotor1.stopCh = stopChs["motor1"].Chan
 					dummyMotor1.mu.Unlock()
 				}
+				test.That(t,
+					float64(t.Elapsed())/float64(t.N),
+					test.ShouldBeBetweenOrEqual,
+					float64(windowSize)*.75,
+					float64(windowSize)*1.5,
+				)
 			})
 
 			t.Run("multiple_components", func(t *testing.B) {
@@ -266,6 +272,12 @@ func BenchmarkSessions(t *testing.B) {
 					dummyEcho1.stopCh = stopChs["echo1"].Chan
 					dummyEcho1.mu.Unlock()
 				}
+				test.That(t,
+					float64(t.Elapsed())/float64(t.N),
+					test.ShouldBeBetweenOrEqual,
+					float64(windowSize)*.75,
+					float64(windowSize)*1.5,
+				)
 			})
 
 			test.That(t, roboClient.Close(ctx), test.ShouldBeNil)
