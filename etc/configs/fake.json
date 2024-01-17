@@ -44,15 +44,10 @@
         {
             "name": "camera1",
             "type": "camera",
-            "model": "fake"
-        },
-        {
-            "name": "wc",
-            "type": "camera",
-            "model": "webcam",
+            "model": "fake",
             "attributes": {
-                "video_path": "video4"
-            }
+		"animated": true
+	    }
         },
         {
             "name": "encoder1",
