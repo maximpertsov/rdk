@@ -90,7 +90,7 @@ func (svc *webService) addNewStream(name string) (gostream.Stream, bool, error) 
 	// Skip if stream is already registered, otherwise raise any other errors
 	var registeredError *gostream.StreamAlreadyRegisteredError
 	if errors.As(err, &registeredError) {
-		svc.logger.Infow("stream is already registered", "name", name)
+		svc.logger.Infow(">>> stream is already registered", "name", name)
 		return nil, true, nil
 	} else if err != nil {
 		return nil, false, err
@@ -103,7 +103,7 @@ func (svc *webService) addNewStream(name string) (gostream.Stream, bool, error) 
 }
 
 func (svc *webService) addNewStreams(ctx context.Context) error {
-	svc.logger.Info("\tadding streams")
+	svc.logger.Info(">>> adding streams")
 	if !svc.streamInitialized() {
 		return nil
 	}
@@ -176,7 +176,7 @@ func (svc *webService) initStream(ctx context.Context, streams []gostream.Stream
 }
 
 func (svc *webService) makeStreamServer(ctx context.Context) (*StreamServer, error) {
-	svc.logger.Info("making video stream")
+	svc.logger.Info(">>> making video stream")
 	svc.refreshVideoSources()
 	svc.refreshAudioSources()
 	var streams []gostream.Stream
@@ -279,19 +279,19 @@ func (svc *webService) startAudioStream(ctx context.Context, source gostream.Aud
 
 // refreshVideoSources checks and initializes every possible video source that could be viewed from the robot.
 func (svc *webService) refreshVideoSources() {
-	svc.logger.Info("refreshing video sources")
+	svc.logger.Info(">>> refreshing video sources")
 	for _, name := range camera.NamesFromRobot(svc.r) {
-		svc.logger.Infow("refreshing video", "camera", name)
+		svc.logger.Infow(">>> refreshing video", "camera", name)
 		cam, err := camera.FromRobot(svc.r, name)
 		if err != nil {
 			svc.logger.Warnw("there was an error", "detail", err)
 			continue
 		}
 		trackName := validSDPTrackName(name)
-		svc.logger.Infow("finding video source", "track name", trackName)
+		svc.logger.Infow(">>> finding video source", "track name", trackName)
 		existing, ok := svc.videoSources[trackName]
 		if ok {
-			svc.logger.Warn("camera exists, swapping...")
+			svc.logger.Warn(">>> camera exists, swapping...")
 			existing.Swap(cam)
 			continue
 		}
@@ -319,19 +319,18 @@ func (svc *webService) refreshAudioSources() {
 
 // Update updates the web service when the robot has changed.
 func (svc *webService) Reconfigure(ctx context.Context, deps resource.Dependencies, _ resource.Config) error {
-	svc.logger.Info("reconfiguring web service")
+	svc.logger.Info(">>> reconfiguring web service")
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
 	if err := svc.updateResources(deps); err != nil {
-		svc.logger.Infow("error updating resources", "detail", err)
+		svc.logger.Infow(">>> error updating resources", "detail", err)
 		return err
 	}
 	if !svc.isRunning {
-		svc.logger.Info("already running")
-		// return svc.addNewStreams(svc.cancelCtx)
+		svc.logger.Info(">>> already running")
 		return nil
 	}
-	svc.logger.Info("updated resources")
+	svc.logger.Info(">>> updated resources")
 	return svc.addNewStreams(svc.cancelCtx)
 }
 
