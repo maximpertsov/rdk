@@ -141,38 +141,33 @@ func (svc *webService) addNewStreams(ctx context.Context) error {
 	return nil
 }
 
-func (svc *webService) initStream(ctx context.Context, streams []gostream.Stream, name string, isVideo bool) ([]gostream.Stream, error) {
+func (svc *webService) initVideoStream(ctx context.Context, name string) (gostream.Stream, error) {
 	config := *svc.opts.streamConfig
 	config.Name = name
-	if isVideo {
-		config.AudioEncoderFactory = nil
+	config.AudioEncoderFactory = nil // TODO: remove?
 
-		// set TargetFrameRate to the framerate of the video source if available
-		props, err := svc.videoSources[name].MediaProperties(ctx)
-		if err != nil {
-			svc.logger.Warnw("failed to get video source properties", "name", name, "error", err)
-		} else if props.FrameRate > 0.0 {
-			// round float up to nearest int
-			config.TargetFrameRate = int(math.Ceil(float64(props.FrameRate)))
-		}
-		// default to 60fps if the video source doesn't have a framerate
-		if config.TargetFrameRate == 0 {
-			config.TargetFrameRate = 60
-		}
-
-		if runtime.GOOS == "windows" {
-			// TODO(RSDK-1771): support video on windows
-			svc.logger.Warnw("not starting video stream since not supported on Windows yet", "name", name)
-			return streams, nil
-		}
-	} else {
-		config.VideoEncoderFactory = nil
-	}
-	stream, err := gostream.NewStream(config)
+	// set TargetFrameRate to the framerate of the video source if available
+	props, err := svc.videoSources[name].MediaProperties(ctx)
 	if err != nil {
-		return streams, err
+		svc.logger.Warnw("failed to get video source properties", "name", name, "error", err)
+	} else if props.FrameRate > 0.0 {
+		// round float up to nearest int
+		config.TargetFrameRate = int(math.Ceil(float64(props.FrameRate)))
 	}
-	return append(streams, stream), nil
+	// default to 60fps if the video source doesn't have a framerate
+	if config.TargetFrameRate == 0 {
+		config.TargetFrameRate = 60
+	}
+
+	return gostream.NewStream(config)
+}
+
+func (svc *webService) initAudioStream(ctx context.Context, name string) (gostream.Stream, error) {
+	config := *svc.opts.streamConfig
+	config.Name = name
+	config.VideoEncoderFactory = nil // TODO: remove?
+
+	return gostream.NewStream(config)
 }
 
 func (svc *webService) makeStreamServer(ctx context.Context) (*StreamServer, error) {
@@ -190,20 +185,25 @@ func (svc *webService) makeStreamServer(ctx context.Context) (*StreamServer, err
 		return &StreamServer{noopServer, false}, err
 	}
 
-	for name := range svc.videoSources {
-		var err error
-		streams, err = svc.initStream(ctx, streams, name, true)
-		if err != nil {
-			return nil, err
+	if runtime.GOOS == "windows" {
+		// TODO(RSDK-1771): support video on windows
+		svc.logger.Warn("not starting video streams since not supported on Windows yet")
+	} else {
+		for name := range svc.videoSources {
+			stream, err := svc.initVideoStream(ctx, name)
+			if err != nil {
+				return nil, err
+			}
+			streams = append(streams, stream)
+			streamTypes = append(streamTypes, true)
 		}
-		streamTypes = append(streamTypes, true)
 	}
 	for name := range svc.audioSources {
-		var err error
-		streams, err = svc.initStream(ctx, streams, name, false)
+		stream, err := svc.initAudioStream(ctx, name)
 		if err != nil {
 			return nil, err
 		}
+		streams = append(streams, stream)
 		streamTypes = append(streamTypes, false)
 	}
 
