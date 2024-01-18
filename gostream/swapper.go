@@ -3,6 +3,7 @@ package gostream
 import (
 	"context"
 	"image"
+	"log"
 	"sync"
 
 	"github.com/pion/mediadevices/pkg/prop"
@@ -84,6 +85,7 @@ func (swapper *hotSwappableMediaSource[T, U]) Stream(
 // Swap replaces the underlying media source with the given one and signals to all
 // streams that a new source is available.
 func (swapper *hotSwappableMediaSource[T, U]) Swap(newSrc MediaSource[T]) {
+	log.Println(">>> swapping media source", newSrc)
 	swapper.mu.Lock()
 	defer swapper.mu.Unlock()
 	if swapper.src == newSrc {
