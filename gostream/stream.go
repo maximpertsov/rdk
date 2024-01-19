@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -114,6 +115,8 @@ func NewStream(config StreamConfig) (Stream, error) {
 		shutdownCtx:       ctx,
 		shutdownCtxCancel: cancelFunc,
 	}
+	logger.Infof("Creating BasicStream. Name: %v %p", name, bs)
+	debug.PrintStack()
 
 	return bs, nil
 }

@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,6 +41,7 @@ type GraphNode struct {
 	needsDependencyResolution bool
 
 	logger logging.Logger
+	Remote bool
 }
 
 var (
@@ -70,18 +72,34 @@ func NewConfiguredGraphNode(config Config, res Resource, resModel Model) *GraphN
 	return node
 }
 
+func (w *GraphNode) dbg(str string) {
+	if w.Remote {
+		fmt.Println("DBG. Lock held:", str)
+	}
+}
+
+func (w *GraphNode) undbg() {
+	if w.Remote {
+		fmt.Println("DBG. Lock released")
+	}
+}
+
 // UpdatedAt returns the value of the logical clock when SwapResource was last
 // called on this GraphNode (the resource was last updated). It's only used
 // for tests.
 func (w *GraphNode) UpdatedAt() int64 {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("updated at")
+	defer w.undbg()
 	return w.updatedAt
 }
 
 func (w *GraphNode) setGraphLogicalClock(clock *atomic.Int64) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("setGraphLogicalClock")
+	defer w.undbg()
 	w.graphLogicalClock = clock
 }
 
@@ -91,6 +109,8 @@ func (w *GraphNode) setGraphLogicalClock(clock *atomic.Int64) {
 func (w *GraphNode) LastReconfigured() *time.Time {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("LastReconfigured")
+	defer w.undbg()
 	return w.lastReconfigured
 }
 
@@ -99,6 +119,8 @@ func (w *GraphNode) LastReconfigured() *time.Time {
 func (w *GraphNode) Resource() (Resource, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	//w.dbg("Resource")
+	//defer w.undbg()
 	if w.markedForRemoval {
 		return nil, errPendingRemoval
 	}
@@ -132,6 +154,8 @@ func (w *GraphNode) SetLogLevel(level logging.Level) {
 func (w *GraphNode) UnsafeResource() (Resource, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("UnsafeResource")
+	defer w.undbg()
 	if w.current == nil {
 		return nil, errNotInitalized
 	}
@@ -144,6 +168,8 @@ func (w *GraphNode) UnsafeResource() (Resource, error) {
 func (w *GraphNode) ResourceModel() Model {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("ResourceModel")
+	defer w.undbg()
 	return w.currentModel
 }
 
@@ -151,6 +177,8 @@ func (w *GraphNode) ResourceModel() Model {
 func (w *GraphNode) HasResource() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	//w.dbg("HasResource")
+	//defer w.undbg()
 	return !w.markedForRemoval && w.lastErr == nil && w.current != nil
 }
 
@@ -158,6 +186,8 @@ func (w *GraphNode) HasResource() bool {
 func (w *GraphNode) IsUninitialized() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("IsUninitialized")
+	defer w.undbg()
 	return w.current == nil
 }
 
@@ -166,6 +196,8 @@ func (w *GraphNode) IsUninitialized() bool {
 func (w *GraphNode) UnsetResource() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("UnsetResource")
+	defer w.undbg()
 	w.current = nil
 }
 
@@ -178,6 +210,8 @@ func (w *GraphNode) UnsetResource() {
 func (w *GraphNode) SwapResource(newRes Resource, newModel Model) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("SwapResource")
+	defer w.undbg()
 	w.current = newRes
 	w.currentModel = newModel
 	w.lastErr = nil
@@ -199,6 +233,8 @@ func (w *GraphNode) SwapResource(newRes Resource, newModel Model) {
 func (w *GraphNode) MarkForRemoval() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("MarkForRemoval")
+	defer w.undbg()
 	w.markedForRemoval = true
 }
 
@@ -206,6 +242,8 @@ func (w *GraphNode) MarkForRemoval() {
 func (w *GraphNode) MarkedForRemoval() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("MarkedForRemoval")
+	defer w.undbg()
 	return w.markedForRemoval
 }
 
@@ -217,6 +255,8 @@ func (w *GraphNode) MarkedForRemoval() bool {
 func (w *GraphNode) LogAndSetLastError(err error, args ...any) {
 	w.mu.Lock()
 	w.lastErr = err
+	w.dbg("LogAndSetLastError")
+	defer w.undbg()
 	w.mu.Unlock()
 
 	if w.logger != nil {
@@ -230,6 +270,8 @@ func (w *GraphNode) LogAndSetLastError(err error, args ...any) {
 func (w *GraphNode) Config() Config {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("Config")
+	defer w.undbg()
 	return w.config
 }
 
@@ -238,6 +280,8 @@ func (w *GraphNode) Config() Config {
 func (w *GraphNode) NeedsReconfigure() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("NeedsReconfigure")
+	defer w.undbg()
 	return !w.markedForRemoval && w.needsReconfigure
 }
 
@@ -246,12 +290,16 @@ func (w *GraphNode) NeedsReconfigure() bool {
 func (w *GraphNode) hasUnresolvedDependencies() bool {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("hasUnresolvedDependencies")
+	defer w.undbg()
 	return w.needsDependencyResolution
 }
 
 func (w *GraphNode) setNeedsReconfigure(newConfig Config, mustReconfigure bool, dependencies []string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("setNeedsReconfigure")
+	defer w.undbg()
 	if !mustReconfigure && w.markedForRemoval {
 		// This is the case where the node is being asked to update
 		// with no new config but it was marked for removal otherwise.
@@ -292,6 +340,8 @@ func (w *GraphNode) SetNeedsUpdate() {
 func (w *GraphNode) setUnresolvedDependencies(names ...string) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("setUnresolvedDependencies")
+	defer w.undbg()
 	w.unresolvedDependencies = names
 	w.needsDependencyResolution = true
 }
@@ -301,6 +351,8 @@ func (w *GraphNode) setUnresolvedDependencies(names ...string) {
 func (w *GraphNode) setDependenciesResolved() {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("setDependenciesResolved")
+	defer w.undbg()
 	w.needsDependencyResolution = false
 }
 
@@ -309,6 +361,8 @@ func (w *GraphNode) setDependenciesResolved() {
 func (w *GraphNode) UnresolvedDependencies() []string {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+	w.dbg("UnresolvedDependencies")
+	defer w.undbg()
 	if len(w.unresolvedDependencies) == 0 {
 		return nil
 	}
@@ -321,6 +375,8 @@ func (w *GraphNode) UnresolvedDependencies() []string {
 func (w *GraphNode) Close(ctx context.Context) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("Close")
+	defer w.undbg()
 
 	if w.current == nil {
 		return nil
@@ -333,6 +389,8 @@ func (w *GraphNode) Close(ctx context.Context) error {
 func (w *GraphNode) replace(other *GraphNode) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	w.dbg("replace")
+	defer w.undbg()
 	if w.current != nil {
 		return errors.New("may only replace an uninitialized node")
 	}

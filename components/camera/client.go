@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"image"
+	"runtime/debug"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.opencensus.io/trace"
@@ -52,7 +54,7 @@ func NewClientFromConn(
 ) (Camera, error) {
 	cancelCtx, cancel := context.WithCancel(context.Background())
 	c := pb.NewCameraServiceClient(conn)
-	return &client{
+	ret := &client{
 		Named:     name.PrependRemote(remoteName).AsNamed(),
 		name:      name.ShortName(),
 		conn:      conn,
@@ -60,7 +62,10 @@ func NewClientFromConn(
 		logger:    logger,
 		cancelCtx: cancelCtx,
 		cancel:    cancel,
-	}, nil
+	}
+	logger.Infof("NewCameraClientFromConn. Conn: %p CameraClient: %p", ret.conn, ret)
+	debug.PrintStack()
+	return ret, nil
 }
 
 func getExtra(ctx context.Context) (*structpb.Struct, error) {
@@ -82,6 +87,10 @@ func getExtra(ctx context.Context) (*structpb.Struct, error) {
 }
 
 func (c *client) Read(ctx context.Context) (image.Image, func(), error) {
+	err := c.cancelCtx.Err()
+	c.logger.Infof("Images read call. Obj: %p Canceled?", c, err)
+	// debug.PrintStack()
+
 	ctx, span := trace.StartSpan(ctx, "camera::client::Read")
 	defer span.End()
 	mimeType := gostream.MIMETypeHint(ctx, "")
@@ -92,7 +101,10 @@ func (c *client) Read(ctx context.Context) (image.Image, func(), error) {
 		return nil, nil, err
 	}
 
-	resp, err := c.client.GetImage(ctx, &pb.GetImageRequest{
+	getCtx, cancelFn := context.WithTimeout(context.Background(), time.Second)
+	defer cancelFn()
+
+	resp, err := c.client.GetImage(getCtx, &pb.GetImageRequest{
 		Name:     c.name,
 		MimeType: expectedType,
 		Extra:    ext,
@@ -123,14 +135,19 @@ func (c *client) Stream(
 
 	cancelCtxWithMIME := gostream.WithMIMETypeHint(c.cancelCtx, gostream.MIMETypeHint(ctx, ""))
 	streamCtx, stream, frameCh := gostream.NewMediaStreamForChannel[image.Image](cancelCtxWithMIME)
+	c.logger.Infof("DBG. New Stream for channel. ReadFrom. Conn: %p Client: %p", c.conn, c)
+	debug.PrintStack()
 
 	c.mu.Lock()
-	if err := c.cancelCtx.Err(); err != nil {
-		c.mu.Unlock()
-		return nil, err
-	}
+	// if err := c.cancelCtx.Err(); err != nil {
+	//  	c.logger.Infof("Returning new stream with error. Before creating goroutine. Type: %T", c.cancelCtx)
+	//  	c.mu.Unlock()
+	//  	return nil, err
+	// }
 	c.activeBackgroundWorkers.Add(1)
 	c.mu.Unlock()
+
+	c.logger.Infof("NewStream. c.ctx: %v ctx: %v streamCtx: %v", c.cancelCtx.Err(), ctx.Err(), streamCtx.Err())
 
 	goutils.PanicCapturingGo(func() {
 		streamCtx = trace.NewContext(streamCtx, span)
@@ -139,26 +156,45 @@ func (c *client) Stream(
 		defer c.activeBackgroundWorkers.Done()
 		defer close(frameCh)
 
+		numFrames := 0
+		defer c.logger.Info("Loop ended. Frames:", numFrames)
+		started := false
 		for {
-			if streamCtx.Err() != nil {
-				return
-			}
+			// if streamCtx.Err() != nil {
+			//  	return
+			// }
 
+			if started == false {
+				c.logger.Infof("New stream first read.")
+			}
 			frame, release, err := c.Read(streamCtx)
+			if started == false {
+				c.logger.Infof("New stream first read. Err: %v", err)
+				started = true
+			}
 			if err != nil {
 				for _, handler := range errHandlers {
 					handler(streamCtx, err)
 				}
 			}
+			c.logger.Infof("Consuming frame/release pair. %p", frame)
 
 			select {
-			case <-streamCtx.Done():
-				return
+			// case <-streamCtx.Done():
+			//  	return
 			case frameCh <- gostream.MediaReleasePairWithError[image.Image]{
 				Media:   frame,
 				Release: release,
 				Err:     err,
 			}:
+				numFrames++
+				if numFrames%60 == 0 {
+					c.logger.Info("Loop frames:", numFrames)
+				}
+			default:
+				if frame == nil {
+					return
+				}
 			}
 		}
 	})
@@ -174,9 +210,11 @@ func (c *client) Images(ctx context.Context) ([]NamedImage, resource.ResponseMet
 		Name: c.name,
 	})
 	if err != nil {
+		c.logger.Info("Images call error. Err:", err)
 		return nil, resource.ResponseMetadata{}, errors.Wrap(err, "camera client: could not gets images from the camera")
 	}
 
+	c.logger.Info("Images call success. Len:", len(resp.Images))
 	images := make([]NamedImage, 0, len(resp.Images))
 	// keep everything lazy encoded by default, if type is unknown, attempt to decode it
 	for _, img := range resp.Images {

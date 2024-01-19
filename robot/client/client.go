@@ -765,7 +765,8 @@ func (rc *RobotClient) ResourceNames() []resource.Name {
 // ResourceRPCAPIs returns a list of all known resource APIs.
 func (rc *RobotClient) ResourceRPCAPIs() []resource.RPCAPI {
 	if err := rc.checkConnected(); err != nil {
-		rc.Logger().Errorw("failed to get remote resource types", "error", err)
+		// rc.Logger().Errorw("failed to get remote resource types", "error", err)
+		rc.Logger().Errorw("failed to get remote resource types")
 		return nil
 	}
 	rc.mu.RLock()

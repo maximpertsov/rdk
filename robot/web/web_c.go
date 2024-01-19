@@ -81,29 +81,7 @@ func (svc *webService) streamInitialized() bool {
 	return svc.streamServer != nil && svc.streamServer.Server != nil
 }
 
-func (svc *webService) addNewStream(name string) (gostream.Stream, bool, error) {
-	// Configure new stream
-	config := *svc.opts.streamConfig
-	config.Name = name
-	stream, err := svc.streamServer.Server.NewStream(config)
-
-	// Skip if stream is already registered, otherwise raise any other errors
-	var registeredError *gostream.StreamAlreadyRegisteredError
-	if errors.As(err, &registeredError) {
-		svc.logger.Infow(">>> stream is already registered", "name", name)
-		return nil, true, nil
-	} else if err != nil {
-		return nil, false, err
-	}
-
-	if !svc.streamServer.HasStreams {
-		svc.streamServer.HasStreams = true
-	}
-	return stream, false, nil
-}
-
 func (svc *webService) addNewStreams(ctx context.Context) error {
-	svc.logger.Info(">>> adding streams")
 	if !svc.streamInitialized() {
 		return nil
 	}
@@ -116,8 +94,29 @@ func (svc *webService) addNewStreams(ctx context.Context) error {
 		return nil
 	}
 
+	newStream := func(name string) (gostream.Stream, bool, error) {
+		// Configure new stream
+		config := *svc.opts.streamConfig
+		config.Name = name
+		stream, err := svc.streamServer.Server.NewStream(config)
+
+		// Skip if stream is already registered, otherwise raise any other errors
+		var registeredError *gostream.StreamAlreadyRegisteredError
+		if errors.As(err, &registeredError) {
+			return nil, true, nil
+		} else if err != nil {
+			return nil, false, err
+		}
+
+		if !svc.streamServer.HasStreams {
+			svc.streamServer.HasStreams = true
+		}
+		return stream, false, nil
+	}
+
 	for name, source := range svc.videoSources {
-		stream, alreadyRegistered, err := svc.addNewStream(name)
+		stream, alreadyRegistered, err := newStream(name)
+		svc.logger.Infow("New video stream?", "err", err, "alreadyRegistered", alreadyRegistered, "name", name)
 		if err != nil {
 			return err
 		} else if alreadyRegistered {
@@ -128,7 +127,7 @@ func (svc *webService) addNewStreams(ctx context.Context) error {
 	}
 
 	for name, source := range svc.audioSources {
-		stream, alreadyRegistered, err := svc.addNewStream(name)
+		stream, alreadyRegistered, err := newStream(name)
 		if err != nil {
 			return err
 		} else if alreadyRegistered {
@@ -141,37 +140,7 @@ func (svc *webService) addNewStreams(ctx context.Context) error {
 	return nil
 }
 
-func (svc *webService) initVideoStream(ctx context.Context, name string) (gostream.Stream, error) {
-	config := *svc.opts.streamConfig
-	config.Name = name
-	config.AudioEncoderFactory = nil // TODO: remove?
-
-	// set TargetFrameRate to the framerate of the video source if available
-	props, err := svc.videoSources[name].MediaProperties(ctx)
-	if err != nil {
-		svc.logger.Warnw("failed to get video source properties", "name", name, "error", err)
-	} else if props.FrameRate > 0.0 {
-		// round float up to nearest int
-		config.TargetFrameRate = int(math.Ceil(float64(props.FrameRate)))
-	}
-	// default to 60fps if the video source doesn't have a framerate
-	if config.TargetFrameRate == 0 {
-		config.TargetFrameRate = 60
-	}
-
-	return gostream.NewStream(config)
-}
-
-func (svc *webService) initAudioStream(ctx context.Context, name string) (gostream.Stream, error) {
-	config := *svc.opts.streamConfig
-	config.Name = name
-	config.VideoEncoderFactory = nil // TODO: remove?
-
-	return gostream.NewStream(config)
-}
-
 func (svc *webService) makeStreamServer(ctx context.Context) (*StreamServer, error) {
-	svc.logger.Info(">>> making video stream")
 	svc.refreshVideoSources()
 	svc.refreshAudioSources()
 	var streams []gostream.Stream
@@ -185,25 +154,54 @@ func (svc *webService) makeStreamServer(ctx context.Context) (*StreamServer, err
 		return &StreamServer{noopServer, false}, err
 	}
 
-	if runtime.GOOS == "windows" {
-		// TODO(RSDK-1771): support video on windows
-		svc.logger.Warn("not starting video streams since not supported on Windows yet")
-	} else {
-		for name := range svc.videoSources {
-			stream, err := svc.initVideoStream(ctx, name)
+	addStream := func(streams []gostream.Stream, name string, isVideo bool) ([]gostream.Stream, error) {
+		config := *svc.opts.streamConfig
+		config.Name = name
+		if isVideo {
+			config.AudioEncoderFactory = nil
+
+			// set TargetFrameRate to the framerate of the video source if available
+			props, err := svc.videoSources[name].MediaProperties(ctx)
 			if err != nil {
-				return nil, err
+				svc.logger.Warnw("failed to get video source properties", "name", name, "error", err)
+			} else if props.FrameRate > 0.0 {
+				// round float up to nearest int
+				config.TargetFrameRate = int(math.Ceil(float64(props.FrameRate)))
 			}
-			streams = append(streams, stream)
-			streamTypes = append(streamTypes, true)
+			// default to 60fps if the video source doesn't have a framerate
+			if config.TargetFrameRate == 0 {
+				config.TargetFrameRate = 60
+			}
+
+			if runtime.GOOS == "windows" {
+				// TODO(RSDK-1771): support video on windows
+				svc.logger.Warnw("not starting video stream since not supported on Windows yet", "name", name)
+				return streams, nil
+			}
+		} else {
+			config.VideoEncoderFactory = nil
 		}
+		stream, err := gostream.NewStream(config)
+		if err != nil {
+			return streams, err
+		}
+		return append(streams, stream), nil
 	}
-	for name := range svc.audioSources {
-		stream, err := svc.initAudioStream(ctx, name)
+	for name := range svc.videoSources {
+		var err error
+		streams, err = addStream(streams, name, true)
+		svc.logger.Infow("makeStreamServer.addVideoStream", "name", name)
 		if err != nil {
 			return nil, err
 		}
-		streams = append(streams, stream)
+		streamTypes = append(streamTypes, true)
+	}
+	for name := range svc.audioSources {
+		var err error
+		streams, err = addStream(streams, name, false)
+		if err != nil {
+			return nil, err
+		}
 		streamTypes = append(streamTypes, false)
 	}
 
@@ -265,6 +263,7 @@ func (svc *webService) startVideoStream(ctx context.Context, source gostream.Vid
 			streamVideoCtx = gostream.WithMIMETypeHint(streamVideoCtx, rutils.WithLazyMIMEType(rutils.MimeTypeH264))
 		}
 
+		svc.logger.Infow("startVideoStream", "name", stream.Name())
 		return webstream.StreamVideoSource(streamVideoCtx, source, stream, opts, svc.logger)
 	})
 }
@@ -279,24 +278,21 @@ func (svc *webService) startAudioStream(ctx context.Context, source gostream.Aud
 
 // refreshVideoSources checks and initializes every possible video source that could be viewed from the robot.
 func (svc *webService) refreshVideoSources() {
-	svc.logger.Info(">>> refreshing video sources")
+	svc.logger.Info("Refreshing video sources")
 	for _, name := range camera.NamesFromRobot(svc.r) {
-		svc.logger.Infow(">>> refreshing video", "camera", name)
 		cam, err := camera.FromRobot(svc.r, name)
 		if err != nil {
-			svc.logger.Warnw("there was an error", "detail", err)
 			continue
 		}
-		trackName := validSDPTrackName(name)
-		svc.logger.Infow(">>> finding video source", "track name", trackName)
-		existing, ok := svc.videoSources[trackName]
+		existing, ok := svc.videoSources[validSDPTrackName(name)]
 		if ok {
-			svc.logger.Warn(">>> camera exists, swapping...")
+			svc.logger.Infow("Refreshing video sources. Swapping existing", "name", name, "track name", validSDPTrackName(name))
 			existing.Swap(cam)
 			continue
 		}
 		newSwapper := gostream.NewHotSwappableVideoSource(cam)
-		svc.videoSources[trackName] = newSwapper
+		svc.videoSources[validSDPTrackName(name)] = newSwapper
+		svc.logger.Infow("Refreshing video sources. New", "name", name, "track name", validSDPTrackName(name))
 	}
 }
 
@@ -319,18 +315,14 @@ func (svc *webService) refreshAudioSources() {
 
 // Update updates the web service when the robot has changed.
 func (svc *webService) Reconfigure(ctx context.Context, deps resource.Dependencies, _ resource.Config) error {
-	svc.logger.Info(">>> reconfiguring web service")
 	svc.mu.Lock()
 	defer svc.mu.Unlock()
 	if err := svc.updateResources(deps); err != nil {
-		svc.logger.Infow(">>> error updating resources", "detail", err)
 		return err
 	}
 	if !svc.isRunning {
-		svc.logger.Info(">>> already running")
 		return nil
 	}
-	svc.logger.Info(">>> updated resources")
 	return svc.addNewStreams(svc.cancelCtx)
 }
 

@@ -118,11 +118,13 @@ func (manager *resourceManager) addRemote(
 		gNode = resource.NewConfiguredGraphNode(resource.Config{
 			ConvertedAttributes: &c,
 		}, rr, builtinModel)
+		gNode.Remote = true
 		if err := manager.resources.AddNode(rName, gNode); err != nil {
 			manager.logger.CErrorw(ctx, "failed to add new node for remote", "name", rName, "error", err)
 			return
 		}
 	} else {
+		gNode.Remote = true
 		gNode.SwapResource(rr, builtinModel)
 	}
 	manager.updateRemoteResourceNames(ctx, rName, rr)

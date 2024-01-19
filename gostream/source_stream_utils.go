@@ -2,6 +2,7 @@ package gostream
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/edaniels/golog"
 	"go.viam.com/utils"
@@ -47,6 +48,7 @@ func streamMediaSource[T, U any](
 ) error {
 	streamLoop := func() error {
 		readyCh, readyCtx := stream.StreamingReady()
+		golog.Global().Infof("streamMediaSource ready err: %v ctx err: %v", readyCtx.Err(), ctx.Err())
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -81,8 +83,10 @@ func streamMediaSource[T, U any](
 				return nil
 			default:
 			}
+			golog.Global().Info("streamMediaSource. for-loop next. Ctx.Err:", ctx.Err())
 			media, release, err := mediaStream.Next(ctx)
 			if err != nil {
+				golog.Global().Info("streamMediaSource. for-loop next err:", err)
 				continue
 			}
 			select {
@@ -91,11 +95,14 @@ func streamMediaSource[T, U any](
 			case <-readyCtx.Done():
 				return nil
 			case input <- MediaReleasePair[T]{media, release}:
+				golog.Global().Infof("Created media/release pair. %p", media)
 			}
 		}
 	}
+	defer golog.Global().Info("Leaving StreamMediaSource")
 	for {
 		if err := streamLoop(); err != nil {
+			fmt.Println("Err:", err)
 			return err
 		}
 	}

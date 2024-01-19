@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/edaniels/golog"
 	"github.com/pion/mediadevices/pkg/driver"
 	"github.com/pion/mediadevices/pkg/driver/camera"
 	"github.com/pion/mediadevices/pkg/prop"
@@ -93,6 +94,7 @@ func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), er
 
 	if reader, ok := source.(MediaReader[T]); ok {
 		// more efficient if there is a direct way to read
+		golog.Global().Infof("Source is MediaReader[T]. Source: %p Reader %p", source, reader)
 		return reader.Read(ctx)
 	}
 	stream, err := source.Stream(ctx)
@@ -103,6 +105,7 @@ func ReadMedia[T any](ctx context.Context, source MediaSource[T]) (T, func(), er
 	defer func() {
 		utils.UncheckedError(stream.Close(ctx))
 	}()
+	golog.Global().Infof("Source is not MediaReader[T]. Source: %p Reader: %p", source, stream)
 	return stream.Next(ctx)
 }
 
@@ -416,13 +419,17 @@ func (ms *mediaStreamFromChannel[T]) Next(ctx context.Context) (T, func(), error
 	ctx, span := trace.StartSpan(ctx, "gostream::mediaStreamFromChannel::Next")
 	defer span.End()
 
+	golog.Global().Infof(
+		"mediaStreamFromChannel.Next. Ctx.Err: %v cancel.Err: %v ctx.Done: %v", ctx.Err(), ms.cancelCtx.Err())
 	var zero T
 	select {
-	case <-ms.cancelCtx.Done():
-		return zero, nil, ms.cancelCtx.Err()
+	// case <-ms.cancelCtx.Done():
+	//  	return zero, nil, ms.cancelCtx.Err()
 	case <-ctx.Done():
 		return zero, nil, ctx.Err()
 	case pair := <-ms.media:
+		golog.Global().Infof(
+			"mediaStreamFromChannel.Next. %p %v %v", pair.Media, pair.Release, pair.Err)
 		return pair.Media, pair.Release, pair.Err
 	}
 }
