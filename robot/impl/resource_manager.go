@@ -525,6 +525,9 @@ func (manager *resourceManager) completeConfig(
 					fmt.Errorf("remote config validation error: %w", err), "remote", remConf.Name)
 				continue
 			}
+			if remConf != nil {
+				manager.logger.Infow(">>> remote config", "details", *remConf)
+			}
 			rr, err := manager.processRemote(ctx, *remConf, gNode)
 			if err != nil {
 				gNode.LogAndSetLastError(

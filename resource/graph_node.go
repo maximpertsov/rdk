@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -270,6 +271,7 @@ func (w *GraphNode) setNeedsReconfigure(newConfig Config, mustReconfigure bool, 
 		w.needsDependencyResolution = true
 	}
 	w.config = newConfig
+	log.Println(">>> new config, plz reconfig")
 	w.needsReconfigure = true
 	w.markedForRemoval = false
 	w.unresolvedDependencies = dependencies
