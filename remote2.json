@@ -1,0 +1,6 @@
+{
+    "network": {
+        "fqdn": "something-unique",
+        "bind_address": ":8082"
+    }
+}
