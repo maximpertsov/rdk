@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
+
 	// registers all components.
 	commonpb "go.viam.com/api/common/v1"
 	armpb "go.viam.com/api/component/arm/v1"
@@ -1851,8 +1852,7 @@ func TestConfigMethod(t *testing.T) {
 	logger := logging.NewTestLogger(t)
 
 	// Precompile complex module to avoid timeout issues when building takes too long.
-	complexPath, err := rtestutils.BuildTempModule(t, "examples/customresources/demos/complexmodule")
-	test.That(t, err, test.ShouldBeNil)
+	complexPath := rtestutils.BuildTempModule(t, "examples/customresources/demos/complexmodule")
 
 	r, shutdown := initTestRobot(t, context.Background(), &config.Config{}, logger)
 	defer shutdown()
