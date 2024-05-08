@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -19,7 +20,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	pb "go.viam.com/api/module/v1"
 	"go.viam.com/utils"
-	"go.viam.com/utils/pexec"
 	"go.viam.com/utils/rpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -69,7 +69,7 @@ func NewManager(
 type module struct {
 	cfg        config.Module
 	dataDir    string
-	process    pexec.ManagedProcess
+	process    *os.Process
 	handles    modlib.HandlerMap
 	sharedConn rdkgrpc.SharedConn
 	client     pb.ModuleServiceClient
@@ -1010,6 +1010,8 @@ func (m *module) startProcess(
 	logger logging.Logger,
 	viamHomeDir string,
 ) error {
+	// TODO: ensure that process has not already started!
+
 	var err error
 	// append a random alpha string to the module name while creating a socket address to avoid conflicts
 	// with old versions of the module.
@@ -1035,28 +1037,56 @@ func (m *module) startProcess(
 		logger.CInfow(ctx, "Starting module in working directory", "module", m.cfg.Name, "dir", moduleWorkingDirectory)
 	}
 
-	pconf := pexec.ProcessConfig{
-		ID:               m.cfg.Name,
-		Name:             absoluteExePath,
-		Args:             []string{m.addr},
-		CWD:              moduleWorkingDirectory,
-		Environment:      moduleEnvironment,
-		Log:              true,
-		OnUnexpectedExit: oue,
-	}
+	cmd := exec.Command(absoluteExePath, m.addr)
+
 	// Start module process with supplied log level or "debug" if none is
 	// supplied and module manager has a DebugLevel logger.
 	if m.cfg.LogLevel != "" {
-		pconf.Args = append(pconf.Args, fmt.Sprintf(logLevelArgumentTemplate, m.cfg.LogLevel))
+		cmd.Args = append(cmd.Args, fmt.Sprintf(logLevelArgumentTemplate, m.cfg.LogLevel))
 	} else if logger.Level().Enabled(zapcore.DebugLevel) {
-		pconf.Args = append(pconf.Args, fmt.Sprintf(logLevelArgumentTemplate, "debug"))
+		cmd.Args = append(cmd.Args, fmt.Sprintf(logLevelArgumentTemplate, "debug"))
 	}
 
-	m.process = pexec.NewManagedProcess(pconf, logger.AsZap())
+	// Set command environment as the current environment and moduleEnvironment. If any
+	// environment variables are duplicated, then the one in moduleEnvironment will take
+	// precedence.
+	//
+	// From os/exec/exec.go:
+	//  If Env contains duplicate environment keys, only the last
+	//  value in the slice for each duplicate key is used.
+	env := os.Environ()
+	for key, value := range moduleEnvironment {
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
+	}
+	cmd.Env = env
 
-	if err := m.process.Start(context.Background()); err != nil {
+	// Set working directory
+	cmd.Dir = moduleWorkingDirectory
+
+	// TODO: port or prove unnecessary: pexec.ProcessConfig.ID = m.cfg.Name
+	// TODO: port or prove unnecessary: the behavior of pexec.ProcessConfig.Log = true
+	// TODO: port or prove unnecessary: the behavior of pexec.ProcessConfig.OnUnexpectedExit = oue
+
+	// TODO: preserve logging from logger.AsZap()
+	// keep the following logger name:
+	// logger.Named(fmt.Sprintf("process.%s_%s", config.ID, config.Name))
+
+	if err := cmd.Start(); err != nil {
 		return errors.WithMessage(err, "module startup failed")
 	}
+	m.process = cmd.Process
+
+	// TODO: manage process and call oue handler when necessary
+	// TODO: add waitgroup to ensure all processes shutdown correctly?
+	go func() {
+		// Note we want to use `cmd.Wait` instead of `cmd.Process.Wait` to ensure that
+		// all copying to stdin and copying from stdout and stderr complete.
+		if err := cmd.Wait(); err != nil {
+			// check if we should execute oue or exit?
+		} else {
+			// shutdown just fine?
+		}
+	}()
 
 	checkTicker := time.NewTicker(100 * time.Millisecond)
 	defer checkTicker.Stop()
@@ -1096,7 +1126,7 @@ func (m *module) stopProcess() error {
 	// TODO(RSDK-2551): stop ignoring exit status 143 once Python modules handle
 	// SIGTERM correctly.
 	// Also ignore if error is that the process no longer exists.
-	if err := m.process.Stop(); err != nil {
+	if err := m.process.Kill(); err != nil {
 		if strings.Contains(err.Error(), errMessageExitStatus143) || strings.Contains(err.Error(), "no such process") {
 			return nil
 		}
