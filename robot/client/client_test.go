@@ -2140,7 +2140,6 @@ func TestMachineStatus(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-
 			logger := logging.NewTestLogger(t)
 			listener, err := net.Listen("tcp", "localhost:0")
 			test.That(t, err, test.ShouldBeNil)
