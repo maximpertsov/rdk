@@ -1087,6 +1087,20 @@ func TestStatusRemote(t *testing.T) {
 	gServer1 := grpc.NewServer()
 	gServer2 := grpc.NewServer()
 	resourcesFunc := func() []resource.Name { return []resource.Name{arm.Named("arm1"), arm.Named("arm2")} }
+	machineStatusFunc := func(ctx context.Context) (robot.MachineStatus, error) {
+		return robot.MachineStatus{
+			Resources: []resource.Status{
+				{
+					Name: arm.Named("arm1"),
+					State: resource.NodeStateReady,
+				},
+				{
+					Name: arm.Named("arm2"),
+					State: resource.NodeStateReady,
+				},
+			},
+		}, nil
+	}
 	statusCallCount := 0
 
 	// TODO: RSDK-882 will update this so that this is not necessary
@@ -1106,6 +1120,7 @@ func TestStatusRemote(t *testing.T) {
 	injectRobot1 := &inject.Robot{
 		FrameSystemConfigFunc: frameSystemConfigFunc,
 		ResourceNamesFunc:     resourcesFunc,
+		MachineStatusFunc:     machineStatusFunc,
 		ResourceRPCAPIsFunc:   func() []resource.RPCAPI { return nil },
 	}
 	armStatus := &armpb.Status{
@@ -1131,6 +1146,7 @@ func TestStatusRemote(t *testing.T) {
 	injectRobot2 := &inject.Robot{
 		FrameSystemConfigFunc: frameSystemConfigFunc,
 		ResourceNamesFunc:     resourcesFunc,
+		MachineStatusFunc:     machineStatusFunc,
 		ResourceRPCAPIsFunc:   func() []resource.RPCAPI { return nil },
 	}
 	injectRobot2.StatusFunc = func(ctx context.Context, resourceNames []resource.Name) ([]robot.Status, error) {
