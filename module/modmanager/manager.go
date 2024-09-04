@@ -281,13 +281,18 @@ func (mgr *Manager) add(ctx context.Context, conf config.Module) error {
 		logger:    mgr.logger.Sublogger(conf.Name),
 	}
 
-	if err := mgr.startModule(ctx, mod); err != nil {
+	restartCh := make(chan struct{}) // TODO: buffer 1?
+	if err := mgr.startModule(ctx, mod, restartCh); err != nil {
 		return err
 	}
+	go func() {
+		<-restartCh
+		mgr.newOnUnexpectedExitHandler(mod)
+	}()
 	return nil
 }
 
-func (mgr *Manager) startModuleProcess(mod *module) error {
+func (mgr *Manager) startModuleProcess(mod *module, restartCh chan struct{}) error {
 	return mod.startProcess(
 		mgr.restartCtx,
 		mgr.parentAddr,
@@ -298,7 +303,7 @@ func (mgr *Manager) startModuleProcess(mod *module) error {
 	)
 }
 
-func (mgr *Manager) startModule(ctx context.Context, mod *module) error {
+func (mgr *Manager) startModule(ctx context.Context, mod *module, restartCh chan struct{}) error {
 	// add calls startProcess, which can also be called by the OUE handler in the attemptRestart
 	// call. Both of these involve owning a lock, so in unhappy cases of malformed modules
 	// this can lead to a deadlock. To prevent this, we set inStartup here to indicate to
@@ -1039,7 +1044,8 @@ func (m *module) checkReady(ctx context.Context, parentAddr string, logger loggi
 func (m *module) startProcess(
 	ctx context.Context,
 	parentAddr string,
-	oue func(int) bool,
+	restartCh chan struct{},
+	// oue func(int) bool,
 	logger logging.Logger,
 	viamHomeDir string,
 	packagesDir string,
@@ -1069,6 +1075,9 @@ func (m *module) startProcess(
 		logger.CInfow(ctx, "Starting module in working directory", "module", m.cfg.Name, "dir", moduleWorkingDirectory)
 	}
 
+	oue := func(exitCode int) bool {
+		return 
+	}
 	pconf := pexec.ProcessConfig{
 		ID:               m.cfg.Name,
 		Name:             absoluteExePath,
