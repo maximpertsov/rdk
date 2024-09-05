@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	pb "go.viam.com/api/component/arm/v1"
@@ -110,6 +111,7 @@ type Arm struct {
 
 // Reconfigure atomically reconfigures this arm in place based on the new config.
 func (a *Arm) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
+	time.Sleep(10 * time.Second)
 	newConf, err := resource.NativeConfig[*Config](conf)
 	if err != nil {
 		return err
