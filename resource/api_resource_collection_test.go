@@ -11,8 +11,8 @@ import (
 )
 
 func TestAPIResourceCollection(t *testing.T) {
-	res1 := testutils.NewUnimplementedResource(generic.Named("name1"))
-	res2 := testutils.NewUnimplementedResource(generic.Named("name2"))
+	res1 := resource.NewUnimplementedResource(generic.Named("name1"))
+	res2 := resource.NewUnimplementedResource(generic.Named("name2"))
 	resources := map[resource.Name]resource.Resource{
 		res1.Name(): res1,
 	}
@@ -45,7 +45,7 @@ func TestAPIResourceCollection(t *testing.T) {
 		resource.NewName(
 			resource.APINamespaceRDK.WithComponentType("foo"),
 			"",
-		): testutils.NewUnimplementedResource(generic.Named("")),
+		): resource.NewUnimplementedResource(generic.Named("")),
 	}
 	err = svc.ReplaceAll(resources)
 	test.That(t, err, test.ShouldNotBeNil)
@@ -64,16 +64,16 @@ func TestAPIRemoteNames(t *testing.T) {
 	name9 := "remote1:nameX"
 	name10 := "remote2:nameX"
 
-	res0 := testutils.NewUnimplementedResource(generic.Named(name0))
-	res1 := testutils.NewUnimplementedResource(generic.Named(name1))
-	res2 := testutils.NewUnimplementedResource(generic.Named(name2))
-	res3 := testutils.NewUnimplementedResource(generic.Named(name3))
-	res4 := testutils.NewUnimplementedResource(generic.Named(name4))
-	res5 := testutils.NewUnimplementedResource(generic.Named(name5))
-	res7 := testutils.NewUnimplementedResource(generic.Named(name7))
-	res8 := testutils.NewUnimplementedResource(generic.Named(name8))
-	res9 := testutils.NewUnimplementedResource(generic.Named(name9))
-	res10 := testutils.NewUnimplementedResource(generic.Named(name10))
+	res0 := resource.NewUnimplementedResource(generic.Named(name0))
+	res1 := resource.NewUnimplementedResource(generic.Named(name1))
+	res2 := resource.NewUnimplementedResource(generic.Named(name2))
+	res3 := resource.NewUnimplementedResource(generic.Named(name3))
+	res4 := resource.NewUnimplementedResource(generic.Named(name4))
+	res5 := resource.NewUnimplementedResource(generic.Named(name5))
+	res7 := resource.NewUnimplementedResource(generic.Named(name7))
+	res8 := resource.NewUnimplementedResource(generic.Named(name8))
+	res9 := resource.NewUnimplementedResource(generic.Named(name9))
+	res10 := resource.NewUnimplementedResource(generic.Named(name10))
 
 	resources := map[resource.Name]resource.Resource{
 		generic.Named(name0):  res0,
@@ -181,55 +181,55 @@ func TestAPIAddRemoveReplaceOne(t *testing.T) {
 	key4d := resource.NewName(api, name4d)
 
 	svc, err := resource.NewAPIResourceCollection(generic.API, map[resource.Name]resource.Resource{
-		key1: testutils.NewUnimplementedResource(generic.Named(str1)),
-		key4: testutils.NewUnimplementedResource(generic.Named(str4)),
+		key1: resource.NewUnimplementedResource(generic.Named(str1)),
+		key4: resource.NewUnimplementedResource(generic.Named(str4)),
 	})
 	test.That(t, err, test.ShouldBeNil)
 	res, err := svc.Resource(name1)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str1)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str1)))
 	_, err = svc.Resource(name2)
 	test.That(t, err, test.ShouldBeError, resource.NewNotFoundError(generic.Named(name2)))
 	_, err = svc.Resource(name3)
 	test.That(t, err, test.ShouldBeError, resource.NewNotFoundError(generic.Named(name3)))
 	res, err = svc.Resource(name4)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str4)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str4)))
 	res, err = svc.Resource(name4s)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str4)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str4)))
 
-	test.That(t, svc.Add(key2, testutils.NewUnimplementedResource(generic.Named(str2))), test.ShouldBeNil)
+	test.That(t, svc.Add(key2, resource.NewUnimplementedResource(generic.Named(str2))), test.ShouldBeNil)
 	res, err = svc.Resource(name2)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str2)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str2)))
 
-	test.That(t, svc.Add(key3, testutils.NewUnimplementedResource(generic.Named(str3))), test.ShouldBeNil)
+	test.That(t, svc.Add(key3, resource.NewUnimplementedResource(generic.Named(str3))), test.ShouldBeNil)
 	res, err = svc.Resource(name3)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str3)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str3)))
 
-	test.That(t, svc.ReplaceOne(key2, testutils.NewUnimplementedResource(generic.Named(strR))), test.ShouldBeNil)
+	test.That(t, svc.ReplaceOne(key2, resource.NewUnimplementedResource(generic.Named(strR))), test.ShouldBeNil)
 	res, err = svc.Resource(name2)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(strR)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(strR)))
 
-	test.That(t, svc.ReplaceOne(key4, testutils.NewUnimplementedResource(generic.Named(strR))), test.ShouldBeNil)
+	test.That(t, svc.ReplaceOne(key4, resource.NewUnimplementedResource(generic.Named(strR))), test.ShouldBeNil)
 	res, err = svc.Resource(name4)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(strR)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(strR)))
 	res, err = svc.Resource(name4s)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(strR)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(strR)))
 
 	test.That(t, svc.Remove(key3), test.ShouldBeNil)
 	_, err = svc.Resource(name3)
 	test.That(t, err, test.ShouldBeError, resource.NewNotFoundError(generic.Named(name3)))
 
-	test.That(t, svc.Add(key4d, testutils.NewUnimplementedResource(generic.Named(str4))), test.ShouldBeNil)
+	test.That(t, svc.Add(key4d, resource.NewUnimplementedResource(generic.Named(str4))), test.ShouldBeNil)
 	res, err = svc.Resource(name4d)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(str4)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(str4)))
 	_, err = svc.Resource(name4s)
 	test.That(t, err, test.ShouldBeError, resource.NewNotFoundError(generic.Named(name4s)))
 
@@ -238,8 +238,8 @@ func TestAPIAddRemoveReplaceOne(t *testing.T) {
 	test.That(t, err, test.ShouldBeError, resource.NewNotFoundError(generic.Named(name4d)))
 	res, err = svc.Resource(name4)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(strR)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(strR)))
 	res, err = svc.Resource(name4s)
 	test.That(t, err, test.ShouldBeNil)
-	test.That(t, res, test.ShouldResemble, testutils.NewUnimplementedResource(generic.Named(strR)))
+	test.That(t, res, test.ShouldResemble, resource.NewUnimplementedResource(generic.Named(strR)))
 }

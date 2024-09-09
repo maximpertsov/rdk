@@ -11,7 +11,6 @@ import (
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/referenceframe"
 	"go.viam.com/rdk/resource"
-	"go.viam.com/rdk/testutils"
 )
 
 func init() {
@@ -33,7 +32,7 @@ func init() {
 // NewGantry returns a new fake gantry.
 func NewGantry(name resource.Name, logger logging.Logger) gantry.Gantry {
 	return &Gantry{
-		testutils.NewUnimplementedResource(name),
+		resource.NewUnimplementedResource(name),
 		resource.TriviallyReconfigurable{},
 		resource.TriviallyCloseable{},
 		[]float64{1.2},

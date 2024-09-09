@@ -12,18 +12,6 @@ import (
 	"go.viam.com/rdk/resource"
 )
 
-// NewUnimplementedResource returns a resource that has all methods
-// unimplemented.
-func NewUnimplementedResource(name resource.Name) resource.Resource {
-	return &unimplResource{Named: name.AsNamed()}
-}
-
-type unimplResource struct {
-	resource.Named
-	resource.AlwaysRebuild
-	resource.TriviallyCloseable
-}
-
 var (
 	// EchoFunc is a helper to echo out the say command passsed in a Do.
 	EchoFunc = func(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {

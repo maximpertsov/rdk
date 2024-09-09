@@ -9,13 +9,12 @@ import (
 	"go.viam.com/rdk/components/sensor"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/services/motion"
-	"go.viam.com/rdk/testutils"
 )
 
 func TestMatchers(t *testing.T) {
-	armComponent := testutils.NewUnimplementedResource(arm.Named("arm"))
-	sensorService := testutils.NewUnimplementedResource(sensor.Named("sensor"))
-	motionService := testutils.NewUnimplementedResource(motion.Named("motion"))
+	armComponent := resource.NewUnimplementedResource(arm.Named("arm"))
+	sensorService := resource.NewUnimplementedResource(sensor.Named("sensor"))
+	motionService := resource.NewUnimplementedResource(motion.Named("motion"))
 	t.Run("type matcher", func(t *testing.T) {
 		matcher := resource.TypeMatcher{Type: resource.APITypeComponentName}
 		test.That(t, matcher.IsMatch(armComponent), test.ShouldBeTrue)

@@ -304,3 +304,15 @@ func NewCloseOnlyResource(name Name, closeFunc func(ctx context.Context) error) 
 func (r *closeOnlyResource) Close(ctx context.Context) error {
 	return r.closeFunc(ctx)
 }
+
+// NewUnimplementedResource returns a resource that has all methods
+// unimplemented.
+func NewUnimplementedResource(name Name) Resource {
+	return &unimplResource{Named: name.AsNamed()}
+}
+
+type unimplResource struct {
+	Named
+	AlwaysRebuild
+	TriviallyCloseable
+}

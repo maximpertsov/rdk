@@ -24,7 +24,7 @@ var (
 	sensorNames = []resource.Name{sensor.Named("sensor1")}
 )
 
-var hereRes = testutils.NewUnimplementedResource(generic.Named("here"))
+var hereRes = resource.NewUnimplementedResource(generic.Named("here"))
 
 func setupInjectRobot() *inject.Robot {
 	arm3 := inject.NewArm("arm3")
@@ -90,7 +90,7 @@ func TestResourceFromRobot(t *testing.T) {
 
 	res, err = robot.ResourceFromRobot[arm.Arm](r, arm.Named("arm5"))
 	test.That(t, err, test.ShouldBeError,
-		resource.TypeError[arm.Arm](testutils.NewUnimplementedResource(generic.Named("foo"))))
+		resource.TypeError[arm.Arm](resource.NewUnimplementedResource(generic.Named("foo"))))
 	test.That(t, res, test.ShouldBeNil)
 
 	res, err = robot.ResourceFromRobot[arm.Arm](r, arm.Named("arm2"))

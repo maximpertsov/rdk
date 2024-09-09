@@ -9,18 +9,6 @@ import (
 	"go.viam.com/test"
 )
 
-// NewUnimplementedResource returns a resource that has all methods
-// unimplemented.
-func NewUnimplementedResource(name Name) Resource {
-	return &unimplResource{Named: name.AsNamed()}
-}
-
-type unimplResource struct {
-	Named
-	AlwaysRebuild
-	TriviallyCloseable
-}
-
 // NewResourceNameSet returns a flattened set of name strings from
 // a collection of Name objects for the purposes of comparison
 // in automated tests.
