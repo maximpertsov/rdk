@@ -12,9 +12,9 @@ import (
 )
 
 func TestMatchers(t *testing.T) {
-	armComponent := resource.NewUnimplementedResource(arm.Named("arm"))
-	sensorService := resource.NewUnimplementedResource(sensor.Named("sensor"))
-	motionService := resource.NewUnimplementedResource(motion.Named("motion"))
+	armComponent := resource.NewUnimplemented(arm.Named("arm"))
+	sensorService := resource.NewUnimplemented(sensor.Named("sensor"))
+	motionService := resource.NewUnimplemented(motion.Named("motion"))
 	t.Run("type matcher", func(t *testing.T) {
 		matcher := resource.TypeMatcher{Type: resource.APITypeComponentName}
 		test.That(t, matcher.IsMatch(armComponent), test.ShouldBeTrue)

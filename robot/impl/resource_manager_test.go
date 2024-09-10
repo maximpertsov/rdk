@@ -173,7 +173,7 @@ func setupInjectRobot(logger logging.Logger) *inject.Robot {
 					return &fakeservo.Servo{Named: name.AsNamed()}, nil
 				}
 				if rName.API.IsService() {
-					return resource.NewUnimplementedResource(name), nil
+					return resource.NewUnimplemented(name), nil
 				}
 			}
 		}
@@ -365,7 +365,7 @@ func TestManagerResourceRemoteName(t *testing.T) {
 	injectRobot.ResourceNamesFunc = func() []resource.Name { return armNames }
 	injectRobot.ResourceRPCAPIsFunc = func() []resource.RPCAPI { return nil }
 	injectRobot.ResourceByNameFunc = func(name resource.Name) (resource.Resource, error) {
-		return resource.NewUnimplementedResource(name), nil
+		return resource.NewUnimplemented(name), nil
 	}
 	injectRobot.LoggerFunc = func() logging.Logger { return logger }
 
@@ -375,7 +375,7 @@ func TestManagerResourceRemoteName(t *testing.T) {
 	injectRemote.ResourceNamesFunc = func() []resource.Name { return rdktestutils.AddSuffixes(armNames, "") }
 	injectRobot.ResourceRPCAPIsFunc = func() []resource.RPCAPI { return nil }
 	injectRemote.ResourceByNameFunc = func(name resource.Name) (resource.Resource, error) {
-		return resource.NewUnimplementedResource(name), nil
+		return resource.NewUnimplemented(name), nil
 	}
 	injectRemote.LoggerFunc = func() logging.Logger { return logger }
 	manager.addRemote(
@@ -1513,7 +1513,7 @@ func TestManagerEmptyResourceDesc(t *testing.T) {
 		return []resource.Name{resource.NewName(api, "mock1")}
 	}
 	injectRobot.ResourceByNameFunc = func(name resource.Name) (resource.Resource, error) {
-		return resource.NewUnimplementedResource(name), nil
+		return resource.NewUnimplemented(name), nil
 	}
 
 	manager := managerForDummyRobot(t, injectRobot)

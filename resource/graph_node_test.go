@@ -82,7 +82,7 @@ func TestConfiguredLifecycle(t *testing.T) {
 	someConf := resource.Config{Attributes: utils.AttributeMap{"3": 4}}
 
 	resName := generic.Named("some")
-	ourRes := &someResource{Resource: resource.NewUnimplementedResource(resName)}
+	ourRes := &someResource{Resource: resource.NewUnimplemented(resName)}
 	node := withTestLogger(t, resource.NewConfiguredGraphNode(someConf, ourRes, resource.DefaultModelFamily.WithModel("bar")))
 
 	test.That(t, node.IsUninitialized(), test.ShouldBeFalse)
@@ -154,7 +154,7 @@ func lifecycleTest(t *testing.T, node *resource.GraphNode, initialDeps []string)
 	test.That(t, node.UnresolvedDependencies(), test.ShouldResemble, initialDeps)
 
 	// but we end up configuring it
-	ourRes := &someResource{Resource: resource.NewUnimplementedResource(generic.Named("foo"))}
+	ourRes := &someResource{Resource: resource.NewUnimplemented(generic.Named("foo"))}
 	node.SwapResource(ourRes, resource.DefaultModelFamily.WithModel("bar"))
 	test.That(t, node.ResourceModel(), test.ShouldResemble, resource.DefaultModelFamily.WithModel("bar"))
 	test.That(t, node.MarkedForRemoval(), test.ShouldBeFalse)
@@ -188,7 +188,7 @@ func lifecycleTest(t *testing.T, node *resource.GraphNode, initialDeps []string)
 	verifyStateTransition(t, node, resource.NodeStateUnhealthy)
 
 	// it reconfigured
-	ourRes2 := &someResource{Resource: resource.NewUnimplementedResource(generic.Named("foo"))}
+	ourRes2 := &someResource{Resource: resource.NewUnimplemented(generic.Named("foo"))}
 	node.SwapResource(ourRes2, resource.DefaultModelFamily.WithModel("baz"))
 	test.That(t, node.ResourceModel(), test.ShouldResemble, resource.DefaultModelFamily.WithModel("baz"))
 	res, err = node.Resource()
@@ -229,7 +229,7 @@ func lifecycleTest(t *testing.T, node *resource.GraphNode, initialDeps []string)
 	verifyStateTransition(t, node, resource.NodeStateUnhealthy)
 
 	// it reconfigured
-	ourRes3 := &someResource{Resource: resource.NewUnimplementedResource(generic.Named("fooa"))}
+	ourRes3 := &someResource{Resource: resource.NewUnimplemented(generic.Named("fooa"))}
 	node.SwapResource(ourRes3, resource.DefaultModelFamily.WithModel("bazz"))
 	test.That(t, node.ResourceModel(), test.ShouldResemble, resource.DefaultModelFamily.WithModel("bazz"))
 	res, err = node.Resource()
@@ -257,7 +257,7 @@ func lifecycleTest(t *testing.T, node *resource.GraphNode, initialDeps []string)
 	// or "removing" state.
 	verifySameState(t, node)
 
-	ourRes4 := &someResource{Resource: resource.NewUnimplementedResource(generic.Named("foob")), shouldErr: true}
+	ourRes4 := &someResource{Resource: resource.NewUnimplemented(generic.Named("foob")), shouldErr: true}
 	node.SwapResource(ourRes4, resource.DefaultModelFamily.WithModel("bazzz"))
 	test.That(t, node.ResourceModel(), test.ShouldResemble, resource.DefaultModelFamily.WithModel("bazzz"))
 	res, err = node.Resource()

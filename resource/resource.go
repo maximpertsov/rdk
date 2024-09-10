@@ -305,9 +305,8 @@ func (r *closeOnlyResource) Close(ctx context.Context) error {
 	return r.closeFunc(ctx)
 }
 
-// NewUnimplementedResource returns a resource that has all methods
-// unimplemented.
-func NewUnimplementedResource(name Name) Resource {
+// NewUnimplemented returns a [Resource] that has all methods unimplemented.
+func NewUnimplemented(name Name) Resource {
 	return &unimplResource{Named: name.AsNamed()}
 }
 

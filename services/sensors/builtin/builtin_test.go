@@ -33,8 +33,8 @@ func TestGetSensors(t *testing.T) {
 
 	t.Run("no sensors", func(t *testing.T) {
 		resourceMap := map[resource.Name]resource.Resource{
-			movementsensor.Named("imu"): resource.NewUnimplementedResource(movementsensor.Named("resource")),
-			movementsensor.Named("gps"): resource.NewUnimplementedResource(movementsensor.Named("resource")),
+			movementsensor.Named("imu"): resource.NewUnimplemented(movementsensor.Named("resource")),
+			movementsensor.Named("gps"): resource.NewUnimplemented(movementsensor.Named("resource")),
 		}
 		svc, err := builtin.NewBuiltIn(context.Background(), deps, resource.Config{}, logger)
 		test.That(t, err, test.ShouldBeNil)
@@ -49,7 +49,7 @@ func TestGetSensors(t *testing.T) {
 	t.Run("one sensor", func(t *testing.T) {
 		resourceMap := map[resource.Name]resource.Resource{
 			movementsensor.Named("imu"): &inject.Sensor{},
-			movementsensor.Named("gps"): resource.NewUnimplementedResource(movementsensor.Named("resource")),
+			movementsensor.Named("gps"): resource.NewUnimplemented(movementsensor.Named("resource")),
 		}
 		svc, err := builtin.NewBuiltIn(context.Background(), deps, resource.Config{}, logger)
 		test.That(t, err, test.ShouldBeNil)
@@ -84,9 +84,9 @@ func TestReadings(t *testing.T) {
 
 	t.Run("no sensors", func(t *testing.T) {
 		resourceMap := map[resource.Name]resource.Resource{
-			movementsensor.Named("imu"):  resource.NewUnimplementedResource(movementsensor.Named("resource")),
-			movementsensor.Named("gps"):  resource.NewUnimplementedResource(movementsensor.Named("resource")),
-			movementsensor.Named("gps2"): resource.NewUnimplementedResource(movementsensor.Named("resource")),
+			movementsensor.Named("imu"):  resource.NewUnimplemented(movementsensor.Named("resource")),
+			movementsensor.Named("gps"):  resource.NewUnimplemented(movementsensor.Named("resource")),
+			movementsensor.Named("gps2"): resource.NewUnimplemented(movementsensor.Named("resource")),
 		}
 		svc, err := builtin.NewBuiltIn(context.Background(), deps, resource.Config{}, logger)
 		test.That(t, err, test.ShouldBeNil)
@@ -204,7 +204,7 @@ func TestReconfigure(t *testing.T) {
 		err = svc.Reconfigure(
 			context.Background(),
 			map[resource.Name]resource.Resource{
-				movementsensor.Named("imu"): resource.NewUnimplementedResource(generic.Named("not sensor")),
+				movementsensor.Named("imu"): resource.NewUnimplemented(generic.Named("not sensor")),
 			},
 			resource.Config{},
 		)

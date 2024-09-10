@@ -32,7 +32,7 @@ func init() {
 // NewGantry returns a new fake gantry.
 func NewGantry(name resource.Name, logger logging.Logger) gantry.Gantry {
 	return &Gantry{
-		resource.NewUnimplementedResource(name),
+		resource.NewUnimplemented(name),
 		resource.TriviallyReconfigurable{},
 		resource.TriviallyCloseable{},
 		[]float64{1.2},

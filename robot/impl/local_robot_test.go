@@ -943,9 +943,9 @@ func TestStatus(t *testing.T) {
 	logger := logging.NewTestLogger(t)
 	resourceNames := []resource.Name{working1, button1, fail1}
 	resourceMap := map[resource.Name]resource.Resource{
-		working1: resource.NewUnimplementedResource(working1),
-		button1:  resource.NewUnimplementedResource(button1),
-		fail1:    resource.NewUnimplementedResource(fail1),
+		working1: resource.NewUnimplemented(working1),
+		button1:  resource.NewUnimplemented(button1),
+		fail1:    resource.NewUnimplemented(fail1),
 	}
 
 	t.Run("not found", func(t *testing.T) {
@@ -1033,8 +1033,8 @@ func TestStatus(t *testing.T) {
 
 	t.Run("get all status", func(t *testing.T) {
 		workingResourceMap := map[resource.Name]resource.Resource{
-			working1: resource.NewUnimplementedResource(working1),
-			button1:  resource.NewUnimplementedResource(button1),
+			working1: resource.NewUnimplemented(working1),
+			button1:  resource.NewUnimplemented(button1),
 		}
 		expected := map[resource.Name]interface{}{
 			working1: workingStatus,
