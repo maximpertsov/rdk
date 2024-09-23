@@ -4,8 +4,11 @@ import (
 	"cmp"
 	"context"
 	"slices"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/kylelemons/godebug/pretty"
 
 	"go.viam.com/test"
 
@@ -58,11 +61,43 @@ func newSortedResourceNames(resourceNames []resource.Name) []resource.Name {
 }
 
 // VerifySameResourceNames asserts that two slices of resource.Names contain the same
-// resources.Names without considering order.
+// resources.Names without considering order. To make debugging failures easier, this
+// function prints out differing [resource.Name] elements both as structs and
+// strings.
 func VerifySameResourceNames(tb testing.TB, actual, expected []resource.Name) {
 	tb.Helper()
 
-	test.That(tb, newSortedResourceNames(actual), test.ShouldResemble, newSortedResourceNames(expected))
+	actualSorted := newSortedResourceNames(actual)
+	expectedSorted := newSortedResourceNames(expected)
+
+	defer func() {
+		if !tb.Failed() {
+			return
+		}
+
+		// This section makes debugging a bit more pleasant.
+		var sb strings.Builder
+		var actualNames, expectedNames []string
+
+		for _, exp := range expectedSorted {
+			expectedNames = append(expectedNames, exp.String())
+		}
+		for _, act := range actualSorted {
+			actualNames = append(actualNames, act.String())
+		}
+
+		sb.WriteString("Resource names do not match:")
+		sb.WriteString("\nExpected\n")
+		sb.WriteString(pretty.Sprint(expectedNames))
+		sb.WriteString("\nActual\n")
+		sb.WriteString(pretty.Sprint(actualNames))
+		sb.WriteString("\nDiff\n")
+		sb.WriteString(pretty.Compare(expectedNames, actualNames))
+
+		tb.Log(sb.String())
+	}()
+
+	test.That(tb, actualSorted, test.ShouldResemble, expectedSorted)
 }
 
 // VerifySameResourceStatuses asserts that two slices of [resource.Status] contain the
