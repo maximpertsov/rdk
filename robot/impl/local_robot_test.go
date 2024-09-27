@@ -20,6 +20,7 @@ import (
 	"github.com/golang/geo/r3"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.uber.org/zap"
+
 	// registers all components.
 	commonpb "go.viam.com/api/common/v1"
 	armpb "go.viam.com/api/component/arm/v1"
@@ -3953,5 +3954,32 @@ func TestLogPropagation(t *testing.T) {
 			test.That(tb, observer.FilterMessageSnippet(infoLogLine).Len(), test.ShouldEqual, 1)
 			test.That(t, observer.FilterMessageSnippet(debugLogLine).Len(), test.ShouldEqual, 1)
 		})
+	}
+}
+
+func TestNoExcessivelyLongLogLines(t *testing.T) {
+	const maxLength = 100
+
+	ctx := context.Background()
+	logger, observer := logging.NewObservedTestLogger(t)
+
+	resource.RegisterComponent(
+		mockAPI,
+		mockModel,
+		resource.Registration[resource.Resource, *mockConfig]{Constructor: newMock},
+	)
+	defer resource.Deregister(mockAPI, mockModel)
+	lr := setupLocalRobot(t, ctx, &config.Config{
+		Components: []resource.Config{newMockConfig("m", 0, false, "")},
+	}, logger)
+
+	badConfig := &config.Config{
+		Components: []resource.Config{newMockConfig("m", 0, true, "")},
+	}
+	for i := 0; i < 100; i++ {
+		lr.Reconfigure(ctx, badConfig)
+	}
+	for _, entry := range observer.All() {
+		test.That(t, len(entry.Message), test.ShouldBeLessThanOrEqualTo, maxLength)
 	}
 }
