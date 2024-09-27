@@ -3521,7 +3521,7 @@ func TestMachineStatus(t *testing.T) {
 					Name:     mockNamed("m"),
 					State:    resource.NodeStateUnhealthy,
 					Revision: rev2,
-					Error:    expectedConfigError,
+					Error:    errors.Join(expectedConfigError),
 				},
 			},
 		)
