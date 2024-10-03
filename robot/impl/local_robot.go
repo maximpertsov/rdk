@@ -1204,6 +1204,8 @@ func (r *localRobot) reconfigure(ctx context.Context, newConfig *config.Config, 
 		return
 	}
 
+	// TODO: execute `run_first` script
+
 	if newConfig.Cloud != nil {
 		r.Logger().CDebug(ctx, "updating cached config")
 		if err := newConfig.StoreToCache(); err != nil {
