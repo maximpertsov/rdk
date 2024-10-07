@@ -551,7 +551,6 @@ func (g *Graph) ResolveDependencies(logger logging.Logger) error {
 		for _, dep := range unresolvedDeps {
 			tryResolve := func() (Name, bool) {
 				if dep == nodeName.String() {
-					allErrs = multierr.Combine(errors.Errorf("node cannot depend on itself: %q", nodeName))
 					logger.Errorw("node cannot depend on itself", "name", nodeName)
 					return Name{}, false
 				}
@@ -566,7 +565,6 @@ func (g *Graph) ResolveDependencies(logger logging.Logger) error {
 				case 0:
 				case 1:
 					if nodeNames[0].String() == nodeName.String() {
-						allErrs = multierr.Combine(errors.Errorf("node cannot depend on itself: %q", nodeName))
 						logger.Errorw("node cannot depend on itself", "name", nodeName)
 						return Name{}, false
 					}
@@ -577,9 +575,6 @@ func (g *Graph) ResolveDependencies(logger logging.Logger) error {
 					)
 					return nodeNames[0], true
 				default:
-					allErrs = multierr.Combine(
-						allErrs,
-						errors.Errorf("conflicting names for resource %q: %v", nodeName, nodeNames))
 					logger.Errorw(
 						"cannot resolve dependency for resource due to multiple matching names",
 						"name", nodeName,
