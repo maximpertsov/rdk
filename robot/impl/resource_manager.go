@@ -314,14 +314,16 @@ func (manager *resourceManager) updateRemotesResourceNames(ctx context.Context) 
 	anythingChanged := false
 	for _, name := range manager.resources.Names() {
 		gNode, _ := manager.resources.Node(name)
-		if name.API == client.RemoteAPI {
-			res, err := gNode.Resource()
-			if err == nil {
-				if rr, ok := res.(internalRemoteRobot); ok {
-					// updateRemoteResourceNames must be first, otherwise there's a chance it will not be evaluated
-					anythingChanged = manager.updateRemoteResourceNames(ctx, name, rr, false) || anythingChanged
-				}
-			}
+		if name.API != client.RemoteAPI {
+			continue
+		}
+		res, err := gNode.Resource()
+		if err != nil {
+			continue
+		}
+		if rr, ok := res.(internalRemoteRobot); ok {
+			thisRemoteChanged := manager.updateRemoteResourceNames(ctx, name, rr, false)
+			anythingChanged = thisRemoteChanged || anythingChanged
 		}
 	}
 	return anythingChanged
